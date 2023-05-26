@@ -1,12 +1,12 @@
-name: title
+name: Findley Defranc
 class: title, smokescreen, shelf
 background-image: url(./assets/images/slide_templates/Academy-title.png)
 count: false
 
-# TITLE GOES HERE
+# Enablement 2023 HashiCorp Products 
 
 <!-- Image example -->
-![:scale 20%](./assets/logos/HashiCorp_Enterprise_Academy_Vertical_White_RGB.png)
+![:scale 15%](./assets/logos/HashiCorp_Enterprise_Academy_Vertical_White_RGB.png)
 
 ???
 
