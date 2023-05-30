@@ -1,0 +1,57 @@
+How Vault works
+
+Vault tightly controls access to secrets and encryption keys by authenticating against trusted sources of identity such as Active Directory, LDAP, Kubernetes, CloudFoundry, and cloud platforms.
+
+Baseline recommendations
+
+    Do not run as root. Use a dedicated, unprivileged service account to run Vault, rather than running as the root or Administrator account. Vault is designed to be run by an unprivileged user, and doing so adds significant defense against various privilege-escalation attacks.
+
+    Allow minimal write privileges. The unprivileged Vault service account should not have access to overwrite its executable binary or any Vault configuration files. Only directories and files for local Vault storage (eg, for the Integrated Storage backend) or audit logs should be writable by the Vault user.
+
+    End-to-End TLS. Vault should always be used with TLS in production. If intermediate load balancers or reverse proxies are used to front Vault, TLS should be used for all network connections between every component of the system (including Storage Backends) to ensure all traffic is encrypted in transit to and from Vault. When possible, the HTTP Strict Transport Security (HSTS) header should be set using Vault's custom response headers feature.
+
+    Disable Swap. Vault encrypts data in transit and at rest, however it must still have sensitive data in memory to function. Risk of exposure should be minimized by disabling swap to prevent the operating system from paging sensitive data to disk. This is especially important when using the integrated storage backend.
+
+    Disable core dumps. A user or administrator that can force a core dump and has access to the resulting file can potentially access Vault encryption keys. Preventing core dumps is a platform-specific process; on Linux setting the resource limit RLIMIT_CORE to 0 disables core dumps. In the systemd service unit file, setting LimitCORE=0 will enforce this setting for the Vault service.
+
+    Single Tenancy. Vault should be the only main process running on a machine. This reduces the risk that another process running on the same machine is compromised and can interact with Vault. Similarly, running on bare metal should be preferred to a VM, and running in a VM should be preferred to running in a container.
+
+    Firewall traffic. Use a local firewall or network security features of your cloud provider to restrict incoming and outgoing traffic to Vault and essential system services like NTP. This includes restricting incoming traffic to permitted subnets and outgoing traffic to services Vault needs to connect to, such as databases.
+
+    Avoid Root Tokens. Vault provides a root token when it is first initialized. This token should be used to setup the system initially, particularly setting up auth methods so that users may authenticate. We recommend treating Vault configuration as code, and using version control to manage policies. Once setup, the root token should be revoked to eliminate the risk of exposure. Root tokens can be generated when needed, and should be revoked as soon as possible.
+
+    Enable audit logging. Vault supports several audit devices. Enabling audit logging provides a history of all operations performed by Vault and a forensics trail in the case of misuse or compromise. Audit logs securely hash sensitive data, but access should still be restricted to prevent any unintended disclosures.
+
+    Disable Shell Command History. You may want the vault command itself to not appear in history at all. Refer to additional methods for guidance.
+
+    Upgrade Frequently. Vault is actively developed, and updating frequently is important to incorporate security fixes and any changes in default settings such as key lengths or cipher suites. Subscribe to the HashiCorp Announcement mailing list to receive announcements of new releases and visit the Vault CHANGELOG for details on what changes are being made in each release.
+
+    Synchronized Clocks. Use NTP or whatever mechanism is appropriate for your environment to ensure that all the Vault nodes agree about what time it is. Vault uses the clock for things like enforcing TTLs and setting dates in PKI certificates, and if the nodes have significant clock skew, a failover may wreak havoc.
+
+    Restrict Storage Access. Vault encrypts all data at rest, regardless of which storage backend is used. Although the data is encrypted, an attacker with arbitrary control can cause data corruption or loss by modifying or deleting keys. Access to the storage backend should be restricted to only Vault to avoid unauthorized access or operations.
+
+    No Clear Text Credentials. The seal stanza of the Vault configuration file configures the seal type to use for additional data protection such as using HSM or Cloud KMS solutions to encrypt and decrypt the root key (previously known as master key). DO NOT store your cloud credentials or HSM pin in clear text within the seal stanza. If the Vault server is hosted on the same cloud platform as the KMS service, use the platform-specific identity solutions. For example:
+        Resource Access Management (RAM) on AliCloud
+        Instance Profiles on AWS
+        Managed Service Identities (MSI) on Azure
+        Service Account on Google Cloud Platform
+
+    If that is not applicable, set the credentials as environment variables (e.g. VAULT_HSM_PIN).
+
+    Use Safest Algorithms Available. Vault's TLS listener supports a variety of legacy algorithms for backwards compatibility. While these algorithms are available, they may not recommended for use, especially if a stronger alternative is available. If possible, the use of TLS 1.3 ensures that modern encryption algorithms are used to encrypt data in transit and forward secrecy.
+
+    Follow Best Practices For Plugins. While HashiCorp-developed plugins generally default to a safe configuration, you should be mindful of misconfigured or malicious Vault plugins. These may harm the security posture of your Vault deployment.
+
+    Non-Deterministic File Merging. Vault's configuration file merging is non-deterministic, and inconsistencies in settings between files could lead to inconsistencies in Vault settings. Ensure set configurations are consistent across all files (and any files merged together denoted by -config).
+
+    Use Correct Filesystem Permissions. Always ensure appropriate permissions are applied to files prior to starting Vault, especially those containing sensitive information.
+
+    Use Standard Input For Vault Secrets. Vault login and Vault unseal allow operators to provide secret values from both standard input or command-line arguments. Command-line arguments may be read by other unprivileged users on the same host or be persisted in shell history.
+
+    Offboarding Considerations. Removing accounts in Vault or associated identity providers may not immediately revoke token-based access. Depending on how access to Vault is managed, operators should consider:
+        Removing the entity from groups granting access to resources.
+        Revoking the active leases for a given user account.
+        Deleting the canonical entity of the user after removing accounts in Vault or associated identity providers. Deleting the canonical entity alone is insufficient as one is automatically created on successful login if it does not exist.
+        Disabling auth methods instead of deleting them, which revokes all tokens generated by this auth method.
+
+    Use Short TTLs When possible, credentials issued from Vault (e.g., tokens, x.509 certificates) should be short-lived, as to guard against their potential compromise, and reduce the need to use revokation methods.

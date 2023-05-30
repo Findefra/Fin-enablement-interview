@@ -1,0 +1,34 @@
+$folders = @("Production", "Disaster_Recovery", "UAT")
+
+foreach ($folder in $folders) {
+    $folderPath = Join-Path -Path $PWD -ChildPath $folder
+    $modulePath = Join-Path -Path $folderPath -ChildPath "modules"
+    $filePath = Join-Path -Path $folderPath -ChildPath "main.tf"
+    
+    New-Item -Path $folderPath -ItemType Directory | Out-Null
+    New-Item -Path $modulePath -ItemType Directory | Out-Null
+    New-Item -Path $filePath -ItemType File | Out-Null
+    
+    $content = @"
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
+# Configure the AWS Provider
+provider "aws" {
+  region = "us-east-1"
+}
+
+# Create a VPC
+resource "aws_vpc" "example" {
+  cidr_block = "10.0.0.0/16"
+}
+"@
+    
+    $content | Out-File -FilePath $filePath -Force
+}

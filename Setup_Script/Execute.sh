@@ -1,0 +1,1 @@
+./setup.sh         # Execute the script
